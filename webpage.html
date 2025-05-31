@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wildlife Explorer</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg-color: rgba(0, 0, 0, 0.7);
+      --text-color: white;
+      --card-bg: rgba(0, 0, 0, 0.7);
+      --link-color: #0dcaf0;
+    }
+
+    body.light-mode {
+      --bg-color: rgba(255, 255, 255, 0.85);
+      --text-color: #212529;
+      --card-bg: rgba(255, 255, 255, 0.85);
+      --link-color: #0d6efd;
+      backdrop-filter: none;
+    }
+
+    body {
+      background: url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1470&q=80') no-repeat center center fixed;
+      background-size: cover;
+      color: var(--text-color);
+      min-height: 100vh;
+      padding-top: 40px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      backdrop-filter: brightness(0.7);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: -1;
+    }
+
+    .result-card {
+      background: var(--card-bg);
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 30px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 0 20px rgba(255,255,255,0.1);
+      color: var(--text-color);
+    }
+
+    .result-card h2 {
+      font-weight: bold;
+    }
+
+    .result-img {
+      width: 100%;
+      border-radius: 10px;
+      max-height: 250px;
+      object-fit: cover;
+      margin-bottom: 15px;
+      box-shadow: 0 0 10px rgba(255,255,255,0.2);
+    }
+
+    #searchForm {
+      max-width: 600px;
+      margin: 0 auto 30px auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    #searchInput {
+      flex: 1;
+      padding: 0.6rem;
+      font-size: 1.1rem;
+      border-radius: 5px;
+      border: none;
+    }
+
+    #clearBtn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #clearBtn:hover {
+      background-color: #495057;
+    }
+
+    #searchBtn {
+      padding: 0.6rem 1rem;
+      font-size: 1.1rem;
+    }
+
+    #errorMsg {
+      text-align: center;
+      font-style: italic;
+      margin-top: 40px;
+      color: #ff6b6b;
+      font-weight: bold;
+    }
+
+    a {
+      color: var(--link-color);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    #loadingSpinner {
+      display: none;
+      margin: 20px auto;
+    }
+
+    .gallery {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .gallery img {
+      width: 30%;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center">
+    <h1 class="mb-4" style="text-shadow: 2px 2px 4px #000;">🌍Explore With Me</h1>
+
+    <!-- Light/Dark Mode Toggle -->
+    <div class="form-check form-switch text-end mb-4" style="max-width: 600px; margin: 0 auto;">
+      <input class="form-check-input" type="checkbox" id="themeToggle">
+      <label class="form-check-label" for="themeToggle" style="float: left;">🌗 Dark Mode</label>
+    </div>
+
+    <!-- Search Form -->
+    <form id="searchForm">
+      <input type="text" id="searchInput" placeholder="Search" required />
+      <button id="clearBtn" type="button">Clear</button>
+      <button class="btn btn-info" id="searchBtn" type="submit">Search</button>
+    </form>
+
+    <div id="loadingSpinner" class="spinner-border text-info" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+
+    <div id="result"></div>
+    <p id="errorMsg" style="display:none;">No information found. Try a different name.</p>
+  </div>
+
+  <script>
+    const form = document.getElementById("searchForm");
+    const input = document.getElementById("searchInput");
+    const result = document.getElementById("result");
+    const errorMsg = document.getElementById("errorMsg");
+    const loadingSpinner = document.getElementById("loadingSpinner");
+    const clearBtn = document.getElementById("clearBtn");
+    const themeToggle = document.getElementById("themeToggle");
+
+    const PEXELS_API_KEY = '8EiWErSVAhd2hrZV19KvNUwbtt7sqlXPbwVywsGjcJFZFp444r2qkyNe';
+
+    // Theme toggle logic
+    if (localStorage.getItem("theme") === "light") {
+      document.body.classList.add("light-mode");
+      themeToggle.checked = false;
+    } else {
+      document.body.classList.remove("light-mode");
+      themeToggle.checked = true;
+    }
+
+    themeToggle.addEventListener("change", () => {
+      document.body.classList.toggle("light-mode");
+      const isLight = document.body.classList.contains("light-mode");
+      localStorage.setItem("theme", isLight ? "light" : "dark");
+    });
+
+    input.addEventListener('input', () => {
+      clearBtn.style.display = input.value.trim() ? 'inline-block' : 'none';
+    });
+
+    clearBtn.addEventListener('click', () => {
+      input.value = "";
+      result.innerHTML = "";
+      clearBtn.style.display = 'none';
+      errorMsg.style.display = "none";
+      input.focus();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const term = input.value.trim();
+      if (!term) return;
+
+      result.innerHTML = "";
+      errorMsg.style.display = "none";
+      loadingSpinner.style.display = "block";
+
+      try {
+        // Wikipedia fetch
+        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term)}`);
+        if (!wikiRes.ok) throw new Error();
+        const wikiData = await wikiRes.json();
+        if (!wikiData.extract) throw new Error();
+
+        // Pexels image search
+        const pexelsRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(term)}&per_page=3`, {
+          headers: { Authorization: PEXELS_API_KEY }
+        });
+
+        let imageGallery = "";
+        if (pexelsRes.ok) {
+          const data = await pexelsRes.json();
+          if (data.photos.length > 0) {
+            imageGallery = data.photos.map(photo => `<img src="${photo.src.medium}" alt="${term}" class="result-img" />`).join("");
+          }
+        }
+
+        result.innerHTML = `
+          <div class="result-card">
+            <div class="gallery">${imageGallery}</div>
+            <h2>${wikiData.title}</h2>
+            <p>${wikiData.extract}</p>
+            <a href="${wikiData.content_urls.desktop.page}" target="_blank">Read more on Wikipedia</a>
+          </div>
+        `;
+      } catch (err) {
+        errorMsg.style.display = "block";
+      } finally {
+        loadingSpinner.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>
